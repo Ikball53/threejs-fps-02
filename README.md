@@ -1,42 +1,59 @@
-# Ember Yard — Tactical FPS
+[![make.fun · threejs-fps-02](https://make.fun/badge/threejs-fps-02.svg)](https://make.fun/bounty/threejs-fps-02?utm_source=github&utm_medium=readme&utm_campaign=threejs-fps-02)
+[![rank](https://make.fun/badge/threejs-fps-02/Ikball53/threejs-fps-02/rank.svg)](https://make.fun/bounty/threejs-fps-02/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=threejs-fps-02)
+[![reward](https://make.fun/badge/threejs-fps-02/Ikball53/threejs-fps-02/reward.svg)](https://make.fun/bounty/threejs-fps-02?utm_source=github&utm_medium=readme&utm_campaign=threejs-fps-02)
 
-A round-based tactical first-person shooter built with three.js 0.187.0.
-You are the attacker in the Ember Yard, a dusk-lit foundry yard. Plant the
-charge at Furnace A (Site A) or eliminate all four Warden bots before the
-clock runs out. Win rounds to earn money, buy better gear between rounds,
-and take the match — first to 5 rounds.
+# CINDERLINE — Foundry Yard
 
-## How to play
+A round-based tactical FPS for [make.fun's "Make the best three.js tactical FPS" bounty](https://make.fun/bounty/threejs-fps-02).
 
-- **Objective:** Hold `E` inside the orange ring at Furnace A to plant the
-  charge, then defend it for 35 seconds — or clear every Warden. If you are
-  eliminated before planting, the round is lost. Wardens rush the site to
-  defuse once the charge is live.
-- **Money:** Kills pay $300, a round win $3,250, a loss $1,900. Spend it in
-  the buy phase (press `B` or keys `1–5`) on the Kestrel VK-7 rifle,
-  Spark Grenades, ammo and armor.
-- **Gunplay:** Headshots deal up to 4× damage. Firing while moving or
-  spraying widens your spread and kicks your aim up — stop, crouch or
-  slow-walk (`Shift`) to land shots.
+You are Ember, the attacker, with four bot teammates. Fight the Slate crew
+across the Foundry Yard, plant the Igniter at the Reactor, or wipe the
+other team. First to 7 rounds takes the match.
 
-## Controls
+## How it plays
 
-| Key | Action |
-| --- | --- |
-| WASD | Move |
-| Mouse | Aim (click the deploy button to lock the pointer) |
-| Click | Fire |
-| R | Reload |
-| 1 / 2 / 3 | Falcon P9 pistol / Kestrel VK-7 rifle / Spark Grenade |
-| C | Crouch |
-| Shift | Slow-walk (accurate) |
-| E (hold) | Plant the charge at Site A |
-| B | Buy menu (between rounds) |
+- **Rounds and objective:** 12-second buy phase, 100-second rounds. Plant the
+  Igniter at the Reactor (hold E inside the site, 3 seconds), defend the
+  35-second fuse, or eliminate the whole Slate team. Slate wins by holding
+  the site, defusing (5 seconds), or running the clock out.
+- **Economy:** $800 to start, +$300 per kill, +$3,250 for a round win,
+  +$1,900 for a loss (plus a loss-streak bonus). Press B in the buy phase
+  to shop: five weapons, Kevlar armor, and flash / smoke / HE grenades.
+- **Gunplay:** hitscan with headshots worth double, recoil and spread that
+  punish firing on the move, crouching and aiming to steady the shot,
+  acceleration-based movement with wall collision and jumping.
+- **Bots:** nine bots walk waypoint routes, hold angles, rotate to the
+  planted Igniter, investigate gunfire they hear, and go blind to flashbangs.
+  Smoke clouds block their line of sight.
+- **HUD:** health, armor, ammunition, money, round timer, score, team
+  pips, kill feed, hitmarkers, plant progress, and a buy menu.
+
+## How it works
+
+`main.ts` (Node 22, standard library only) copies `game/` and `screenshots/`
+to `$MAKEFUN_OUTPUT_DIR` (default `/output`) and writes `dossier.json`
+with the kit's `buildDossier`. It creates directories and never deletes
+anything.
+
+The game is static ES modules under `game/` on three.js 0.187.0 (vendored
+byte for byte under `game/vendor/three/`). The simulation runs on a fixed
+60 Hz step kept apart from rendering; one module owns one job:
+`boot.js` (renderer, input, wiring), `sim.js` (rounds and economy),
+`state.js` (the single state store), `map.js` (the yard, colliders, routes),
+`mover.js` (physics), `arms.js` (weapons and grenades), `bots.js` (AI),
+`fx.js` (tracers, sparks, smoke), `sfx.js` (synthesized WebAudio),
+`hud.js` (HUD and buy menu), `shots.js` (screenshot staging).
 
 ## Run it
 
-Serve `game/` with any static server and open `index.html` in desktop
-Chrome, e.g. `python3 -m http.server` from inside `game/`.
+```sh
+mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
+# then serve out/game and open index.html in desktop Chrome
+python3 -m http.server 8123 --directory out/game
+```
 
-Screenshot demo states (for the maker's own screenshots only):
-`?demo=cover`, `?demo=fight`, `?demo=site`, `?demo=buy`.
+Or serve the repo's `game/` directly and play it the same way.
+
+## License
+
+MIT. See `LICENSE`.
