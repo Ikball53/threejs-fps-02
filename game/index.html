@@ -1,86 +1,118 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CINDERLINE — Foundry Yard</title>
+<title>IRONVEIL — Dockside Foundry</title>
 <style>
-  html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #0d0f14; font-family: "Segoe UI", system-ui, sans-serif; color: #e8e4da; }
-  #view { position: fixed; inset: 0; }
-  canvas { display: block; }
-  .layer { position: fixed; inset: 0; pointer-events: none; user-select: none; }
-  #cross { position: fixed; left: 50%; top: 50%; width: 0; height: 0; }
-  #cross i { position: absolute; background: #ffb454; box-shadow: 0 0 2px #000; }
-  #cross .h { left: -11px; top: -1px; width: 22px; height: 2px; }
-  #cross .v { left: -1px; top: -11px; width: 2px; height: 22px; }
-  #cross .dot { left: -1px; top: -1px; width: 2px; height: 2px; background: #fff; }
-  #hitmark { position: fixed; left: 50%; top: 50%; width: 26px; height: 26px; margin: -13px 0 0 -13px; opacity: 0; }
-  #hitmark b { position: absolute; width: 9px; height: 2px; background: #fff; }
-  #hitmark b:nth-child(1) { transform: rotate(45deg); left: 0; top: 4px; }
-  #hitmark b:nth-child(2) { transform: rotate(-45deg); right: 0; top: 4px; }
-  #hitmark b:nth-child(3) { transform: rotate(-45deg); left: 0; bottom: 4px; }
-  #hitmark b:nth-child(4) { transform: rotate(45deg); right: 0; bottom: 4px; }
-  #vig { position: fixed; inset: 0; box-shadow: inset 0 0 120px rgba(255, 30, 10, 0); transition: box-shadow .12s; }
-  #hud-bl { position: fixed; left: 18px; bottom: 16px; font-size: 15px; line-height: 1.5; text-shadow: 0 1px 3px #000; }
-  #hud-bl .hp { font-size: 30px; font-weight: 700; color: #ffd9a0; }
-  #hud-bl .armor { color: #8fd0ff; }
-  #hud-br { position: fixed; right: 18px; bottom: 16px; text-align: right; font-size: 15px; line-height: 1.5; text-shadow: 0 1px 3px #000; }
-  #hud-br .ammo { font-size: 30px; font-weight: 700; color: #ffd9a0; }
-  #hud-br .ammo small { font-size: 15px; color: #cfc8b8; }
-  #hud-top { position: fixed; left: 50%; top: 12px; transform: translateX(-50%); text-align: center; text-shadow: 0 1px 3px #000; }
-  #hud-top .timer { font-size: 26px; font-weight: 700; }
-  #hud-top .score { font-size: 15px; letter-spacing: 1px; }
-  #hud-top .pips { font-size: 13px; letter-spacing: 3px; margin-top: 2px; }
-  #hud-top .pips .dead { opacity: .25; }
-  #money { position: fixed; left: 18px; top: 14px; font-size: 17px; font-weight: 700; color: #a8e6a1; text-shadow: 0 1px 3px #000; }
-  #feed { position: fixed; right: 18px; top: 14px; text-align: right; font-size: 13px; line-height: 1.6; text-shadow: 0 1px 3px #000; }
-  #feed .me { color: #ffb454; } #feed .foe { color: #ff7a6e; } #feed .pal { color: #8fd0ff; }
-  #banner { position: fixed; left: 50%; top: 30%; transform: translate(-50%, -50%); text-align: center; display: none; }
-  #banner .big { font-size: 44px; font-weight: 800; letter-spacing: 4px; text-shadow: 0 2px 10px #000; }
-  #banner .sub { font-size: 16px; color: #cfc8b8; text-shadow: 0 1px 3px #000; }
-  #plantbar { position: fixed; left: 50%; top: 58%; transform: translateX(-50%); width: 260px; display: none; text-align: center; font-size: 13px; text-shadow: 0 1px 3px #000; }
-  #plantbar .track { height: 8px; background: rgba(255,255,255,.18); margin-top: 4px; }
-  #plantbar .fill { height: 100%; width: 0%; background: #ffb454; }
-  #prompt { position: fixed; left: 50%; bottom: 22%; transform: translateX(-50%); font-size: 15px; background: rgba(0,0,0,.55); padding: 6px 12px; border-radius: 4px; display: none; }
-  #buy { position: fixed; inset: 0; background: rgba(8, 9, 12, .82); display: none; pointer-events: auto; }
-  #buy .box { width: 640px; max-width: 92vw; margin: 7vh auto 0; background: #171a21; border: 1px solid #3a3f4d; padding: 18px 22px; }
-  #buy h2 { margin: 0 0 4px; font-size: 20px; letter-spacing: 2px; }
-  #buy .cash { color: #a8e6a1; font-weight: 700; }
-  #buy .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
-  #buy button { text-align: left; background: #22262f; color: #e8e4da; border: 1px solid #3a3f4d; padding: 9px 12px; font-size: 14px; cursor: pointer; }
-  #buy button:hover { border-color: #ffb454; }
-  #buy button b { float: right; color: #a8e6a1; }
-  #buy button:disabled { opacity: .35; cursor: default; }
-  #buy .hint { margin-top: 10px; font-size: 12px; color: #9a958a; }
-  #menu { position: fixed; inset: 0; background: radial-gradient(ellipse at 50% 40%, rgba(255,120,40,.22), rgba(5,6,9,.94) 70%); display: flex; align-items: center; justify-content: center; pointer-events: auto; }
-  #menu .card { text-align: center; max-width: 560px; padding: 24px; }
-  #menu h1 { font-size: 52px; margin: 0; letter-spacing: 6px; color: #ffb454; text-shadow: 0 3px 18px rgba(255,120,40,.5); }
-  #menu .tag { color: #cfc8b8; margin: 6px 0 18px; font-size: 15px; line-height: 1.6; }
-  #menu .keys { font-size: 13px; color: #9a958a; line-height: 1.9; margin-bottom: 20px; }
-  #menu button { font-size: 18px; padding: 12px 34px; background: #ffb454; border: 0; color: #14100a; font-weight: 700; cursor: pointer; letter-spacing: 1px; }
-  #menu button:hover { background: #ffc978; }
-  #toast { position: fixed; left: 50%; bottom: 120px; transform: translateX(-50%); font-size: 14px; color: #ffd9a0; text-shadow: 0 1px 3px #000; }
+  html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #10141a; }
+  #game-root { position: fixed; inset: 0; }
+  #game-root canvas { display: block; width: 100%; height: 100%; }
+  #hud-root { position: fixed; inset: 0; pointer-events: none; font-family: 'Segoe UI', system-ui, sans-serif; color: #e8edf2; user-select: none; }
+  #hud-root * { box-sizing: border-box; }
+
+  /* Top bar: score, timer, phase. */
+  #hud-top { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); text-align: center; }
+  #hud-score { font-size: 22px; font-weight: 800; letter-spacing: 1px; text-shadow: 0 2px 6px rgba(0,0,0,.8); }
+  #hud-score .team-a { color: #e07a2e; font-size: 13px; margin-right: 10px; letter-spacing: 2px; }
+  #hud-score .team-b { color: #2fa8bf; font-size: 13px; margin-left: 10px; letter-spacing: 2px; }
+  #hud-timer { font-size: 30px; font-weight: 800; line-height: 1; text-shadow: 0 2px 6px rgba(0,0,0,.8); }
+  #hud-phase { font-size: 11px; letter-spacing: 3px; color: #ffb347; margin-top: 3px; text-shadow: 0 1px 4px rgba(0,0,0,.9); }
+
+  /* Centre banner. */
+  #hud-banner { position: absolute; top: 22%; left: 50%; transform: translateX(-50%); text-align: center; opacity: 0; transition: opacity .3s; }
+  .banner-main { font-size: 44px; font-weight: 900; letter-spacing: 4px; color: #fff; text-shadow: 0 3px 14px rgba(0,0,0,.9), 0 0 30px rgba(224,122,46,.5); }
+  .banner-sub { font-size: 15px; letter-spacing: 2px; color: #ffd9a0; margin-top: 4px; text-shadow: 0 2px 6px rgba(0,0,0,.9); }
+
+  /* Kill feed, top right. */
+  #hud-killfeed { position: absolute; top: 16px; right: 18px; text-align: right; font-size: 13px; }
+  .kf-line { background: rgba(10,14,18,.72); padding: 4px 9px; margin-bottom: 4px; border-radius: 3px; }
+  .kf-weapon { color: #ffb347; }
+  .kf-note { color: #9fd8ff; }
+
+  /* Minimap, bottom right. */
+  #hud-minimap-wrap { position: absolute; right: 18px; bottom: 18px; }
+  #hud-minimap { border: 2px solid rgba(255,255,255,.25); border-radius: 4px; background: rgba(12,16,20,.8); display: block; }
+  #hud-minimap-label { text-align: center; font-size: 10px; letter-spacing: 3px; color: #9aa7b1; margin-top: 3px; }
+
+  /* Rosters, left side. */
+  #hud-rosters { position: absolute; left: 18px; top: 90px; font-size: 12px; width: 190px; }
+  .roster-title { font-weight: 800; letter-spacing: 2px; font-size: 11px; margin: 8px 0 3px; }
+  .roster-line { display: flex; justify-content: space-between; background: rgba(10,14,18,.6); padding: 3px 8px; margin-bottom: 2px; border-radius: 3px; }
+  .roster-line.dead { opacity: .45; }
+  .roster-line.dead .roster-hp { color: #e74c3c; }
+
+  /* Crosshair. */
+  #hud-crosshair { position: absolute; left: 50%; top: 50%; width: 0; height: 0; --gap: 6px; }
+  .ch-dot { position: absolute; width: 3px; height: 3px; left: -1.5px; top: -1.5px; background: #7dff8a; border-radius: 50%; box-shadow: 0 0 4px rgba(0,0,0,.9); }
+  .ch-line { position: absolute; background: #7dff8a; box-shadow: 0 0 4px rgba(0,0,0,.9); }
+  .ch-t { width: 2px; height: 10px; left: -1px; top: calc(-10px - var(--gap)); }
+  .ch-b { width: 2px; height: 10px; left: -1px; top: var(--gap); }
+  .ch-l { width: 10px; height: 2px; top: -1px; left: calc(-10px - var(--gap)); }
+  .ch-r { width: 10px; height: 2px; top: -1px; left: var(--gap); }
+
+  /* Hurt direction arc. */
+  #hud-hurt { position: absolute; left: 50%; top: 50%; width: 190px; height: 190px; margin: -95px 0 0 -95px; border: 7px solid transparent; border-top-color: rgba(231,76,60,.95); border-radius: 50%; opacity: 0; transition: opacity .15s; }
+
+  /* Hitmarker. */
+  #hud-hitmarker { position: absolute; left: 50%; top: 50%; width: 26px; height: 26px; margin: -13px 0 0 -13px; opacity: 0; }
+  #hud-hitmarker::before, #hud-hitmarker::after { content: ''; position: absolute; left: 12px; top: 0; width: 2px; height: 26px; background: #fff; }
+  #hud-hitmarker::before { transform: rotate(45deg); }
+  #hud-hitmarker::after { transform: rotate(-45deg); }
+  #hud-hitmarker.hit-kill::before, #hud-hitmarker.hit-kill::after { background: #ff4040; }
+
+  /* Bottom bar: health and ammo. */
+  #hud-bottom { position: absolute; left: 18px; bottom: 18px; display: flex; gap: 26px; align-items: flex-end; }
+  #hud-hp-num { font-size: 44px; font-weight: 900; line-height: .9; text-shadow: 0 2px 8px rgba(0,0,0,.9); }
+  #hud-hp-bar { width: 180px; height: 9px; background: rgba(255,255,255,.18); border-radius: 4px; margin-top: 5px; overflow: hidden; }
+  #hud-hp-fill { height: 100%; background: #58d68d; width: 100%; }
+  #hud-armor { font-size: 11px; letter-spacing: 2px; color: #9fd8ff; margin-top: 4px; }
+  #hud-ammo { text-align: right; }
+  #hud-ammo-mag { font-size: 44px; font-weight: 900; line-height: .9; text-shadow: 0 2px 8px rgba(0,0,0,.9); display: inline; }
+  #hud-ammo-res { font-size: 16px; color: #b8c4cd; display: inline; }
+  #hud-weapon { font-size: 12px; letter-spacing: 2px; color: #ffb347; margin-top: 4px; }
+  #hud-grenades { position: absolute; left: 18px; bottom: 118px; font-size: 12px; letter-spacing: 1px; }
+  #hud-grenades span { background: rgba(10,14,18,.65); padding: 3px 8px; border-radius: 3px; margin-right: 5px; }
+  #hud-grenades .dim { opacity: .4; }
+  #hud-grenades .device { color: #ffb347; border: 1px solid #e07a2e; }
+
+  /* Buy menu. */
+  #hud-buymenu { position: absolute; right: 18px; top: 50%; transform: translateY(-50%); width: 330px; background: rgba(8,12,16,.92); border: 1px solid rgba(255,179,71,.4); border-radius: 6px; padding: 14px; display: none; pointer-events: auto; }
+  .buy-title { font-size: 17px; font-weight: 800; letter-spacing: 2px; color: #ffb347; margin-bottom: 10px; }
+  .buy-row { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 4px; cursor: pointer; font-size: 14px; }
+  .buy-row:hover { background: rgba(255,179,71,.15); }
+  .buy-row.cant { opacity: .4; }
+  .buy-key { background: #2a3138; border-radius: 3px; padding: 1px 7px; font-size: 12px; font-weight: 700; }
+  .buy-name { flex: 1; }
+  .buy-price { color: #58d68d; font-weight: 700; }
+  .buy-foot { font-size: 11px; color: #9aa7b1; margin-top: 10px; }
+
+  /* Scoreboard. */
+  #hud-scoreboard { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 560px; background: rgba(8,12,16,.94); border: 1px solid rgba(255,255,255,.2); border-radius: 8px; padding: 20px; display: none; }
+  .sb-title { font-size: 24px; font-weight: 900; letter-spacing: 2px; text-align: center; color: #ffb347; margin-bottom: 14px; }
+  .sb-cols { display: flex; gap: 24px; }
+  .sb-team { flex: 1; }
+  .sb-team-name { font-weight: 800; letter-spacing: 1px; margin-bottom: 6px; }
+  .sb-row { display: flex; justify-content: space-between; padding: 5px 6px; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,.07); }
+  .sb-foot { text-align: center; font-size: 11px; color: #9aa7b1; margin-top: 14px; letter-spacing: 1px; }
+
+  #hud-hint { position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%); font-size: 11px; color: rgba(232,237,242,.55); letter-spacing: 1px; }
+  #hud-flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+  #hud-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; background: #10141a; z-index: 10; }
+  #hud-loading h1 { letter-spacing: 6px; font-size: 34px; margin: 0; color: #e07a2e; }
+  #hud-loading p { color: #9aa7b1; letter-spacing: 2px; font-size: 13px; }
 </style>
 <script type="importmap">
-{ "imports": { "three": "./vendor/three/three.module.min.js" } }
+{
+  "imports": {
+    "three": "./vendor/three/three.module.min.js"
+  }
+}
 </script>
 </head>
 <body>
-<div id="view"></div>
-<div id="vig" class="layer"></div>
-<div id="cross"><i class="h"></i><i class="v"></i><i class="dot"></i></div>
-<div id="hitmark"><b></b><b></b><b></b><b></b></div>
-<div id="money">$800</div>
-<div id="feed"></div>
-<div id="hud-top"><div class="timer">1:40</div><div class="score">EMBER 0 — 0 SLATE</div><div class="pips"></div></div>
-<div id="hud-bl"><span class="hp">100</span> HP<br><span class="armor">ARMOR 0</span></div>
-<div id="hud-br"><span class="ammo">12 <small>/ 120</small></span><br><span class="gun">P9 SIDEARM</span></div>
-<div id="banner"><div class="big"></div><div class="sub"></div></div>
-<div id="plantbar"><span class="lbl"></span><div class="track"><div class="fill"></div></div></div>
-<div id="prompt"></div>
-<div id="toast"></div>
-<div id="buy"><div class="box"><h2>BUY — FOUNDRY YARD</h2><div>Cash: <span class="cash">$800</span> &nbsp;·&nbsp; Press B to close</div><div class="grid" id="buygrid"></div><div class="hint">1–5 weapons · 6 flash · 7 smoke · 8 HE · Armor and grenades stack. Click or press the number keys.</div></div></div>
-<div id="menu"><div class="card"><h1>CINDERLINE</h1><div class="tag">A round-based tactical shooter in the Foundry Yard.<br>Plant the Igniter at the Reactor, or wipe the Slate crew. First to 7 rounds takes the match.</div><div class="keys">WASD move · Mouse aim · Click fire · R reload · Shift walk · Ctrl crouch · Space jump<br>B buy menu · E plant / defuse · 1–5 weapons · 6–8 grenades · G throw grenade</div><button id="play">DEPLOY</button></div></div>
+<div id="game-root"></div>
+<div id="hud-loading"><h1>IRONVEIL</h1><p>DOCKSIDE FOUNDRY &mdash; CLICK TO PLAY</p></div>
 <script type="module" src="./src/boot.js"></script>
 </body>
 </html>
