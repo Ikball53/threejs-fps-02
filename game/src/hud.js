@@ -1,143 +1,184 @@
-// hud.js — every DOM element the player sees: HUD, crosshair, menus, feed.
-// Reads the state object; writes nothing back except through callbacks.
+// hud.js — the heads-up display and the buy menu: every number the player
+// sees, the kill feed, banners, and the shop. One job: turn match state
+// into DOM. It never writes game state back.
 
-import { WEAPONS, BUY_ITEMS, WIN_ROUNDS } from './state.js';
+import { WEAPONS, GRENADES, ARMOR_PRICE } from "./state.js";
 
-let els = null;
-let lastAmmo = '';
+const $ = (id) => document.getElementById(id);
 
-export function buildHud(onBuy, onStart) {
-  const root = document.getElementById('hud');
-  root.innerHTML = `
-    <div id="crosshair"><span class="ch t"></span><span class="ch b"></span><span class="ch l"></span><span class="ch r"></span><span class="ch dot"></span></div>
-    <div id="hitmark">✕</div>
-    <div id="topbar">
-      <div id="timer">1:40</div>
-      <div id="score"><span class="you">YOU 0</span><span class="mid">— ROUND 1 —</span><span class="foe">WARDENS 0</span></div>
-      <div id="bombstat"></div>
-    </div>
-    <div id="health"><div id="hpbar"></div><span id="hptext">100</span><span id="armortext"></span></div>
-    <div id="ammo"><span id="ammomag">12</span><span id="ammores">/ 48</span><div id="wname">Falcon P9</div></div>
-    <div id="money">$800</div>
-    <div id="feed"></div>
-    <div id="banner"></div>
-    <div id="plantbar"><div id="plantfill"></div><span id="plantlabel"></span></div>
-    <div id="hint">WASD move · Mouse aim · Click fire · R reload · 1/2/3 weapons · C crouch · Shift walk · B buy · E plant / defuse</div>
-    <div id="menu">
-      <h1>EMBER YARD</h1>
-      <p class="sub">Tactical round shooter — plant the charge at Furnace A or clear the Wardens.</p>
-      <p class="ctl">WASD move &nbsp;·&nbsp; Mouse aim &nbsp;·&nbsp; Click fire &nbsp;·&nbsp; R reload<br>1 / 2 / 3 weapons &nbsp;·&nbsp; C crouch &nbsp;·&nbsp; Shift slow-walk &nbsp;·&nbsp; B buy &nbsp;·&nbsp; E plant / defuse</p>
-      <button id="playbtn">CLICK TO DEPLOY</button>
-      <p class="fine">First to ${WIN_ROUNDS} rounds. Kills pay $300 · round win $3,250 · loss $1,900.</p>
-    </div>
-    <div id="buy" class="hidden">
-      <h2>BUY PHASE — press 1–5, B to close</h2>
-      <div id="buyrows"></div>
-      <p id="buymoney"></p>
-    </div>`;
-  els = {
-    root, timer: document.getElementById('timer'), score: document.getElementById('score'),
-    bombstat: document.getElementById('bombstat'), hpbar: document.getElementById('hpbar'),
-    hptext: document.getElementById('hptext'), armortext: document.getElementById('armortext'),
-    ammomag: document.getElementById('ammomag'), ammores: document.getElementById('ammores'),
-    wname: document.getElementById('wname'), money: document.getElementById('money'),
-    feed: document.getElementById('feed'), banner: document.getElementById('banner'),
-    plantbar: document.getElementById('plantbar'), plantfill: document.getElementById('plantfill'),
-    plantlabel: document.getElementById('plantlabel'), menu: document.getElementById('menu'),
-    buy: document.getElementById('buy'), buyrows: document.getElementById('buyrows'),
-    buymoney: document.getElementById('buymoney'), hitmark: document.getElementById('hitmark'),
-    crosshair: document.getElementById('crosshair'),
-  };
-  document.getElementById('playbtn').addEventListener('click', onStart);
-  els.buy.addEventListener('click', (e) => {
-    const row = e.target.closest('[data-buy]');
-    if (row) onBuy(row.dataset.buy);
+const BUY_ITEMS = [
+  { key: "pistol", label: "P9 SIDEARM", price: 0 },
+  { key: "scatter", label: "SG-12 SCATTERGUN", price: 900 },
+  { key: "smg", label: "VK-9 SMG", price: 1200 },
+  { key: "carbine", label: "AR-77 CARBINE", price: 2500 },
+  { key: "marksman", label: "DMR-50 MARKSMAN", price: 4000 },
+  { key: "armor", label: "KEVLAR ARMOR", price: ARMOR_PRICE },
+  { key: "flash", label: "FLASH GRENADE", price: 200 },
+  { key: "smoke", label: "SMOKE GRENADE", price: 300 },
+  { key: "he", label: "HE CHARGE", price: 300 },
+];
+
+export function bindHud(onBuy) {
+  const grid = $("buygrid");
+  grid.innerHTML = "";
+  BUY_ITEMS.forEach((item, i) => {
+    const b = document.createElement("button");
+    b.dataset.key = item.key;
+    b.innerHTML = `<span>${i + 1}. ${item.label}</span><b>$${item.price}</b>`;
+    b.addEventListener("click", () => onBuy(item.key));
+    grid.appendChild(b);
   });
-  return els;
+  return {
+    money: $("money"), feed: $("feed"),
+    timer: document.querySelector("#hud-top .timer"),
+    score: document.querySelector("#hud-top .score"),
+    pips: document.querySelector("#hud-top .pips"),
+    hp: document.querySelector("#hud-bl .hp"),
+    armor: document.querySelector("#hud-bl .armor"),
+    ammo: document.querySelector("#hud-br .ammo"),
+    gun: document.querySelector("#hud-br .gun"),
+    cross: $("cross"), hitmark: $("hitmark"), vig: $("vig"),
+    banner: $("banner"), bannerBig: document.querySelector("#banner .big"),
+    bannerSub: document.querySelector("#banner .sub"),
+    plantbar: $("plantbar"), plantLbl: document.querySelector("#plantbar .lbl"),
+    plantFill: document.querySelector("#plantbar .fill"),
+    prompt: $("prompt"), toast: $("toast"), buy: $("buy"),
+    buyCash: document.querySelector("#buy .cash"),
+    buyGrid: grid,
+  };
 }
 
-export function showMenu(show) { if (els) els.menu.classList.toggle('hidden', !show); }
-export function showBuy(show, S) {
-  if (!els) return;
-  els.buy.classList.toggle('hidden', !show);
-  if (!show) return;
-  const p = S.player;
-  els.buyrows.innerHTML = BUY_ITEMS.map((it) => {
-    let note = '';
-    if (it.id === 'rifle') note = p.weapons.rifle.owned ? 'OWNED' : '';
-    if (it.id === 'grenade') note = `held ${p.weapons.grenade.mag + p.weapons.grenade.reserve}`;
-    if (it.id === 'ammo') note = p.weapons.rifle.owned ? `${p.weapons.rifle.reserve} reserve` : 'needs rifle';
-    if (it.id === 'armor') note = `${p.armor} armor`;
-    return `<div class="buyrow" data-buy="${it.id}"><b>[${it.key}] ${it.label}</b><span>$${it.price}</span><em>${note}</em></div>`;
-  }).join('');
-  els.buymoney.textContent = `Your money: $${S.money} — buy phase ends in ${Math.ceil(S.buyClock)}s`;
-}
+const last = {};
 
-export function banner(text, cls, ms) {
-  if (!els) return;
-  els.banner.textContent = text;
-  els.banner.className = cls || '';
-  els.banner.style.opacity = '1';
-  clearTimeout(banner._t);
-  banner._t = setTimeout(() => { els.banner.style.opacity = '0'; }, ms || 2600);
-}
-
-export function addFeed(text) {
-  if (!els) return;
-  const d = document.createElement('div');
-  d.textContent = text;
-  els.feed.prepend(d);
-  while (els.feed.children.length > 5) els.feed.lastChild.remove();
-  setTimeout(() => d.remove(), 9000);
-}
-
-export function hitmarker(kill) {
-  if (!els) return;
-  els.hitmark.style.opacity = '1';
-  els.hitmark.style.color = kill ? '#ff5a3c' : '#fff';
-  clearTimeout(hitmarker._t);
-  hitmarker._t = setTimeout(() => { els.hitmark.style.opacity = '0'; }, kill ? 350 : 140);
-}
-
-export function updateHud(S, dt) {
-  if (!els) return;
-  const p = S.player;
-  const t = Math.max(0, S.roundClock);
-  els.timer.textContent = `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
-  els.timer.style.color = t < 15 ? '#ff5a3c' : '#fff';
-  els.score.innerHTML = `<span class="you">YOU ${S.scoreYou}</span><span class="mid">— ROUND ${S.round} —</span><span class="foe">WARDENS ${S.scoreFoe}</span>`;
-  els.bombstat.textContent = S.bombPlanted
-    ? `⚠ CHARGE LIVE ${S.bombTimer.toFixed(1)}s`
-    : (S.player.weapons.grenade.owned || true) && S.phase === 'live' && nearSite(p) ? 'HOLD E TO PLANT' : '';
-  els.bombstat.style.color = S.bombPlanted ? '#ff5a3c' : '#ffb13c';
-  els.hpbar.style.width = `${Math.max(0, p.hp)}%`;
-  els.hpbar.style.background = p.hp > 50 ? '#7fd67a' : p.hp > 25 ? '#ffb13c' : '#ff5a3c';
-  els.hptext.textContent = `${Math.ceil(Math.max(0, p.hp))} HP`;
-  els.armortext.textContent = p.armor > 0 ? ` · ${p.armor} ARMOR` : '';
-  const w = WEAPONS[p.weapon];
-  const st = p.weapons[p.weapon];
-  const ammoTxt = p.reloading > 0 ? 'RELOADING…' : `${st.mag} / ${st.reserve}`;
-  if (ammoTxt !== lastAmmo) {
-    els.ammomag.textContent = p.reloading > 0 ? '––' : String(st.mag);
-    els.ammores.textContent = p.reloading > 0 ? 'RELOADING' : `/ ${st.reserve}`;
-    lastAmmo = ammoTxt;
+function setText(el, key, value) {
+  if (last[key] !== value) {
+    last[key] = value;
+    el.textContent = value;
   }
-  els.wname.textContent = w.name + (p.weapon === 'grenade' ? ` ×${st.mag + st.reserve}` : '');
-  els.money.textContent = `$${S.money}`;
-  // Crosshair spread grows with bloom + movement: stopping to aim pays.
-  const gap = 6 + p.spreadBloom * 90 + p.speed2d * 1.6;
-  els.crosshair.style.setProperty('--gap', `${gap.toFixed(1)}px`);
-  els.crosshair.style.opacity = S.phase === 'live' || S.phase === 'planted' ? '1' : '0';
-  // Plant / defuse progress bar
-  const prog = S.plantProgress > 0 ? S.plantProgress : S.defuseProgress;
-  const label = S.plantProgress > 0 ? 'PLANTING CHARGE…' : S.defuseProgress > 0 ? 'DEFUSING…' : '';
-  els.plantbar.style.display = prog > 0 ? 'block' : 'none';
-  els.plantfill.style.width = `${(prog * 100).toFixed(0)}%`;
-  els.plantlabel.textContent = label;
-  void dt;
 }
 
-function nearSite(p) {
-  const dx = p.pos.x - 17, dz = p.pos.z - (-12);
-  return dx * dx + dz * dz < 4.5 * 4.5;
+export function updateHud(h, sim) {
+  const { match, player, fighters } = sim;
+  const def = WEAPONS[player.weapon];
+  const bag = player.ammo[player.weapon] ?? { mag: 0, reserve: 0 };
+  setText(h.money, "money", `$${player.money}`);
+  setText(h.hp, "hp", `${Math.max(0, Math.ceil(player.hp))}`);
+  setText(h.armor, "armor", `ARMOR ${Math.ceil(player.armor)}`);
+  const ammoHtml = `${bag.mag} <small>/ ${bag.reserve}</small>`;
+  if (last.ammo !== ammoHtml) {
+    last.ammo = ammoHtml;
+    h.ammo.innerHTML = ammoHtml;
+  }
+  setText(h.gun, "gun", player.reloading ? `${def.name} — RELOADING` : def.name);
+  const clock = Math.max(0, match.roundClock);
+  const mm = Math.floor(clock / 60);
+  const ss = Math.floor(clock % 60).toString().padStart(2, "0");
+  const phaseName = match.phase === "buy" ? "BUY" : match.phase === "freeze" ? "FREEZE" : match.phase === "live" ? "" : match.phase.toUpperCase();
+  setText(h.timer, "timer", phaseName ? `${mm}:${ss} ${phaseName}` : `${mm}:${ss}`);
+  setText(h.score, "score", `EMBER ${match.score.ember} — ${match.score.slate} SLATE · ROUND ${match.round}`);
+  const emberPips = fighters.filter((f) => f.team === "ember").map((f) => `<span class="${f.alive ? "" : "dead"}">●</span>`).join("");
+  const slatePips = fighters.filter((f) => f.team === "slate").map((f) => `<span class="${f.alive ? "" : "dead"}">●</span>`).join("");
+  const pipsHtml = `<span style="color:#ffb454">${emberPips}</span> vs <span style="color:#ff7a6e">${slatePips}</span>`;
+  if (last.pips !== pipsHtml) {
+    last.pips = pipsHtml;
+    h.pips.innerHTML = pipsHtml;
+  }
+  // Crosshair gap grows with spread and recoil.
+  const gap = 3 + player.spread * 320 + player.recoil * 14;
+  h.cross.style.setProperty("--gap", `${gap}px`);
+  const bars = h.cross.querySelectorAll("i");
+  bars[0].style.left = `${-11 - gap}px`;
+  bars[0].style.width = `${22 + gap * 2}px`;
+  bars[1].style.top = `${-11 - gap}px`;
+  bars[1].style.height = `${22 + gap * 2}px`;
+  setText(h.buyCash, "cash", `$${player.money}`);
+  // Buy buttons: affordable and not already held.
+  for (const b of h.buyGrid.children) {
+    const item = BUY_ITEMS.find((x) => x.key === b.dataset.key);
+    const held = item.key === player.weapon;
+    const owned = item.key === "armor" ? player.armor >= 100 : false;
+    b.disabled = held || owned || player.money < item.price;
+  }
+}
+
+export function feedKill(h, killer, victim, headshot) {
+  const cls = killer.team === "ember" ? "pal" : "foe";
+  const vcls = victim.team === "ember" ? "pal" : "foe";
+  const line = document.createElement("div");
+  line.innerHTML = `<span class="${cls}">${killer.name}</span> ${headshot ? "◉" : "✕"} <span class="${vcls}">${victim.name}</span>`;
+  h.feed.prepend(line);
+  while (h.feed.children.length > 5) h.feed.lastChild.remove();
+}
+
+export function feedLine(h, text, cls = "") {
+  const line = document.createElement("div");
+  if (cls) line.className = cls;
+  line.textContent = text;
+  h.feed.prepend(line);
+  while (h.feed.children.length > 5) h.feed.lastChild.remove();
+}
+
+export function showBanner(h, big, sub, color = "#ffd9a0") {
+  h.bannerBig.textContent = big;
+  h.bannerBig.style.color = color;
+  h.bannerSub.textContent = sub;
+  h.banner.style.display = "block";
+}
+
+export function hideBanner(h) {
+  h.banner.style.display = "none";
+}
+
+export function showPlant(h, label, frac) {
+  h.plantbar.style.display = "block";
+  h.plantLbl.textContent = label;
+  h.plantFill.style.width = `${Math.round(frac * 100)}%`;
+}
+
+export function hidePlant(h) {
+  h.plantbar.style.display = "none";
+}
+
+export function showPrompt(h, text) {
+  h.prompt.style.display = "block";
+  h.prompt.textContent = text;
+}
+
+export function hidePrompt(h) {
+  h.prompt.style.display = "none";
+}
+
+export function hitmark(h, headshot) {
+  h.hitmark.style.opacity = "1";
+  h.hitmark.style.color = headshot ? "#ff5a4a" : "#fff";
+  setTimeout(() => { h.hitmark.style.opacity = "0"; }, 120);
+}
+
+export function damageFlash(h) {
+  h.vig.style.boxShadow = "inset 0 0 120px rgba(255,30,10,0.55)";
+  setTimeout(() => { h.vig.style.boxShadow = "inset 0 0 120px rgba(255,30,10,0)"; }, 140);
+}
+
+export function flashWhite(h, power) {
+  h.vig.style.boxShadow = `inset 0 0 140px rgba(255,255,255,${0.75 * power})`;
+  setTimeout(() => { h.vig.style.boxShadow = "inset 0 0 120px rgba(255,30,10,0)"; }, 200);
+}
+
+let toastTimer = 0;
+export function toast(h, text) {
+  h.toast.textContent = text;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { h.toast.textContent = ""; }, 2600);
+}
+
+export function openBuy(h) {
+  h.buy.style.display = "block";
+}
+
+export function closeBuy(h) {
+  h.buy.style.display = "none";
+}
+
+export function buyOpen(h) {
+  return h.buy.style.display === "block";
 }
