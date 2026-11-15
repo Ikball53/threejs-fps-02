@@ -1,49 +1,61 @@
-// CINDERLINE v2 — entry program for threejs-fps-02.
-// Copies game/ and screenshots/ from this repository to the output directory
-// and writes dossier.json with the kit's buildDossier. Node 22 stdlib only.
-// It never deletes anything: the output directory is created, never cleared,
-// because on the grader /output is a fresh mount and clearing it fails.
+// IRONVEIL — Dockside Foundry. The program that hands the game in.
+//
+// It runs under Node 22 with the standard library only, inside the grader's
+// container (or with MAKEFUN_OUTPUT_DIR set while developing). It takes the
+// playable game and the four screenshots from beside this file, places them
+// under the output directory, and writes the dossier the judge reads with
+// the kit's own library, so the dossier always matches the files exactly.
+//
+// The program never writes anything outside the output directory, never
+// removes a directory, and never touches the network: two runs on the same
+// repository write byte-identical output.
 
-import { copyFileSync, existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-import { buildDossier } from "./vendor/makefun-threejs.ts";
+import { cpSync, existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { buildDossier } from './vendor/makefun-threejs.ts';
 
-const ROOT = dirname(fileURLToPath(import.meta.url));
-const OUT = resolve(process.env.MAKEFUN_OUTPUT_DIR ?? "/output");
+// Where this file lives, and where the entry goes.
+const repoRoot = fileURLToPath(new URL('.', import.meta.url));
+const outDir = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
 
-function copyTree(srcDir: string, dstDir: string): number {
-  mkdirSync(dstDir, { recursive: true });
-  let count = 0;
-  for (const entry of readdirSync(srcDir, { withFileTypes: true })) {
-    if (!entry.isFile() && !entry.isDirectory()) continue;
-    const src = join(srcDir, entry.name);
-    const dst = join(dstDir, entry.name);
-    if (entry.isDirectory()) {
-      count += copyTree(src, dst);
-    } else {
-      copyFileSync(src, dst);
-      count += 1;
-    }
-  }
-  return count;
-}
-
-const gameFiles = copyTree(join(ROOT, "game"), join(OUT, "game"));
-const shotFiles = copyTree(join(ROOT, "screenshots"), join(OUT, "screenshots"));
-// Fail fast if the vendored three.js files did not land: the gate refuses
-// an entry without them, and a missing copy is cheaper to catch here.
-for (const name of ["three.module.min.js", "three.core.min.js"]) {
-  const p = join(OUT, "game", "vendor", "three", name);
-  if (!existsSync(p)) throw new Error(`cinderline: missing ${p}`);
-}
-const dossier = buildDossier(OUT, {
+// The scorer's own caps, taken from the kit's gate: the text cap shapes the
+// dossier; the other caps refuse an entry the scorer would refuse, so the
+// program applies them here and fails loudly instead of handing in bad work.
+const dossierCaps = {
   text_max_bytes: 163840,
   screenshots: { max: 4, max_bytes: 262144 },
   game_max_files: 993,
   game_max_bytes: 50331648,
-});
-writeFileSync(join(OUT, "dossier.json"), dossier);
-console.log(
-  `cinderline: ${gameFiles} game files, ${shotFiles} screenshots, dossier ${dossier.length} bytes -> ${OUT}`,
-);
+};
+
+mkdirSync(outDir, { recursive: true });
+mkdirSync(join(outDir, 'screenshots'), { recursive: true });
+
+// The whole game, exactly as it sits in the repository.
+cpSync(join(repoRoot, 'game'), join(outDir, 'game'), { recursive: true });
+
+// The four staged renders, exactly as they were captured from the live game.
+const shotDir = join(repoRoot, 'screenshots');
+if (existsSync(shotDir)) {
+  cpSync(shotDir, join(outDir, 'screenshots'), { recursive: true });
+}
+
+// Guardrail: the game is not an entry without its page, and the judge
+// reads the dossier the library writes — so refuse to hand in a broken
+// tree instead of writing a dossier for it.
+if (!existsSync(join(outDir, 'game', 'index.html'))) {
+  throw new Error('IRONVEIL: game/index.html is missing, refusing to hand in');
+}
+
+// The dossier: screenshots plus every line of the game's source, as the
+// library reads them from the output directory just written.
+const dossier = buildDossier(outDir, dossierCaps);
+writeFileSync(join(outDir, 'dossier.json'), dossier);
+
+// One line of proof on stdout: the dossier's size and the screenshots it
+// carries, so a run's log shows the entry went out whole.
+const shotCount = existsSync(join(outDir, 'screenshots'))
+  ? readdirSync(join(outDir, 'screenshots')).filter((n) => !n.startsWith('.')).length
+  : 0;
+console.log(`IRONVEIL handed in: dossier ${dossier.length} bytes, ${shotCount} screenshots`);

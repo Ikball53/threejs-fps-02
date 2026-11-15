@@ -1,59 +1,56 @@
-[![make.fun · threejs-fps-02](https://make.fun/badge/threejs-fps-02.svg)](https://make.fun/bounty/threejs-fps-02?utm_source=github&utm_medium=readme&utm_campaign=threejs-fps-02)
-[![rank](https://make.fun/badge/threejs-fps-02/Ikball53/threejs-fps-02/rank.svg)](https://make.fun/bounty/threejs-fps-02/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=threejs-fps-02)
-[![reward](https://make.fun/badge/threejs-fps-02/Ikball53/threejs-fps-02/reward.svg)](https://make.fun/bounty/threejs-fps-02?utm_source=github&utm_medium=readme&utm_campaign=threejs-fps-02)
+[![make.fun](https://make.fun/badge.svg)](https://make.fun)
+[![threejs-fps-02 bounty](https://make.fun/bounty/threejs-fps-02/badge.svg)](https://make.fun/bounty/threejs-fps-02)
+[![three.js](https://img.shields.io/badge/three.js-0.187.0-000000.svg)](https://threejs.org/)
 
-# CINDERLINE — Foundry Yard
+# IRONVEIL — Dockside Foundry
 
-A round-based tactical FPS for [make.fun's "Make the best three.js tactical FPS" bounty](https://make.fun/bounty/threejs-fps-02).
+A complete round-based three.js tactical FPS, built for the [make.fun threejs-fps-02 bounty](https://make.fun/bounty/threejs-fps-02).
 
-You are Ember, the attacker, with four bot teammates. Fight the Slate crew
-across the Foundry Yard, plant the Igniter at the Reactor, or wipe the
-other team. First to 7 rounds takes the match.
+Two teams of five fight over a dockside foundry. Rustjackets attack, Harbour Watch defends. First team to 7 rounds wins the match.
 
-## How it plays
+## The game
 
-- **Rounds and objective:** 12-second buy phase, 100-second rounds. Plant the
-  Igniter at the Reactor (hold E inside the site, 3 seconds), defend the
-  35-second fuse, or eliminate the whole Slate team. Slate wins by holding
-  the site, defusing (5 seconds), or running the clock out.
-- **Economy:** $800 to start, +$300 per kill, +$3,250 for a round win,
-  +$1,900 for a loss (plus a loss-streak bonus). Press B in the buy phase
-  to shop: five weapons, Kevlar armor, and flash / smoke / HE grenades.
-- **Gunplay:** hitscan with headshots worth double, recoil and spread that
-  punish firing on the move, crouching and aiming to steady the shot,
-  acceleration-based movement with wall collision and jumping.
-- **Bots:** nine bots walk waypoint routes, hold angles, rotate to the
-  planted Igniter, investigate gunfire they hear, and go blind to flashbangs.
-  Smoke clouds block their line of sight.
-- **HUD:** health, armor, ammunition, money, round timer, score, team
-  pips, kill feed, hitmarkers, plant progress, and a buy menu.
+- **Full tactical loop** — buy phase, freeze phase, live rounds, match end. Rounds are won by elimination, by detonating the planted device, by defusing it, or by holding the site until the clock runs out.
+- **Two plant sites** — Furnace Hall (west) and Crane Yard (east), with an elevated catwalk, a ramp, and loading docks you step onto.
+- **Economy** — kills pay $300, round wins pay $3,250, and a losing streak pays a growing bonus so a team can buy back in. The buy menu sells five rifles and SMGs, a sniper, a shotgun, three grenade types, kevlar, a helmet and a defuse kit.
+- **Gunplay** — six weapons, each with its own recoil pattern, spread that grows with movement, airtime and sustained fire, damage falloff with distance, headshot multipliers, armour, and aim-down-sights zoom.
+- **Movement** — Quake-style acceleration and friction, air control, jumping, crouching, and step-up ledges.
+- **Bots with roles** — entry fraggers, support, a lurker, anchors and a sniper. They plan with A* over a navigation graph with smoothed paths, hold angles, react to gunfire and to seeing enemies, investigate sounds, plant and defuse, and avoid smoke. Smoke genuinely blocks their vision; a flashbang genuinely blinds them.
+- **Grenades** — flash, smoke (14 seconds of real vision-blocking cover), and high-explosive with distance and cover falloff.
+- **HUD** — canvas minimap with live dots, team rosters, kill feed, hurt-direction indicator, health and armour, ammunition, round score and timer, dynamic crosshair, and a full match-end scoreboard.
 
-## How it works
+## Controls
 
-`main.ts` (Node 22, standard library only) copies `game/` and `screenshots/`
-to `$MAKEFUN_OUTPUT_DIR` (default `/output`) and writes `dossier.json`
-with the kit's `buildDossier`. It creates directories and never deletes
-anything.
-
-The game is static ES modules under `game/` on three.js 0.187.0 (vendored
-byte for byte under `game/vendor/three/`). The simulation runs on a fixed
-60 Hz step kept apart from rendering; one module owns one job:
-`boot.js` (renderer, input, wiring), `sim.js` (rounds and economy),
-`state.js` (the single state store), `map.js` (the yard, colliders, routes),
-`mover.js` (physics), `arms.js` (weapons and grenades), `bots.js` (AI),
-`fx.js` (tracers, sparks, smoke), `sfx.js` (synthesized WebAudio),
-`hud.js` (HUD and buy menu), `shots.js` (screenshot staging).
+| Input | Action |
+| --- | --- |
+| Mouse | Aim (click the window to capture it) |
+| WASD | Move |
+| Shift | Walk |
+| Ctrl / C | Crouch |
+| Space | Jump |
+| Left click | Fire |
+| Right click | Aim down sights |
+| R | Reload |
+| 1 / 2 | Primary / sidearm |
+| Q | Cycle grenade |
+| G | Throw grenade |
+| E (hold) | Plant / defuse |
+| B | Buy menu |
+| Tab | Scoreboard |
 
 ## Run it
 
 ```sh
-mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
-# then serve out/game and open index.html in desktop Chrome
-python3 -m http.server 8123 --directory out/game
+node serve.ts
+# open http://localhost:8080
 ```
 
-Or serve the repo's `game/` directly and play it the same way.
+Hand the entry in with `node main.ts` (set `MAKEFUN_OUTPUT_DIR` outside the grader). The screenshots in `screenshots/` are real renders of the game, staged with `?shot=cover|fight|site|buy&seed=1`.
 
-## License
+## Layout
 
-MIT. See `LICENSE`.
+- `main.ts` — the program that copies the game and screenshots to the output directory and writes `dossier.json`.
+- `game/index.html` — the page, with the three.js import map.
+- `game/src/` — the game: `rng` (seeded randomness), `arena` (map, collision, A*), `guns` (weapons and economy items), `fighters` (figures and bot brains), `match` (rounds and money), `fx` (tracers, smoke, explosions), `hud` (minimap, menus, scoreboard), `engine` (fixed-step simulation and rendering), `boot` (startup and staged shots).
+- `game/vendor/three/` — three.js 0.187.0, unchanged from the kit.
+- `vendor/makefun-threejs.ts` — the kit's dossier library, unchanged.
